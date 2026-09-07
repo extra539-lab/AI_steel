@@ -77,24 +77,50 @@ jobs:
         working-directory: ./electron
         run: npm install --include=optional
 
-      - name: Ensure Windows app-builder binary
-        run: npm install app-builder-bin@4.0.0 --save-dev --include=optional
+      -       - name: Install Windows app-builder binary
+        shell: pwsh
+        run: |
+          npm install app-builder-bin@4.0.0 --save-dev --include=optional --force
 
-      - name: Verify Windows app-builder binary
+      - name: Verify and test Windows app-builder
         shell: pwsh
         run: |
           $appBuilder = Join-Path "${{ github.workspace }}" "node_modules\app-builder-bin\win\x64\app-builder.exe"
 
-          if (-Not (Test-Path $appBuilder)) {
-            Write-Error "app-builder.exe not found at: $appBuilder"
+          Write-Output "Checking: $appBuilder"
+
+          if (-Not (Test-Path -LiteralPath $appBuilder)) {
+            Write-Error "app-builder.exe NOT FOUND"
+            Get-ChildItem "${{ github.workspace }}\node_modules\app-builder-bin" -Recurse -ErrorAction SilentlyContinue | Select-Object FullName
             exit 1
           }
 
-          Write-Output "Found app-builder.exe at: $appBuilder"
+          $file = Get-Item -LiteralPath $appBuilder
+          Write-Output "Found: $($file.FullName)"
+          Write-Output "Size: $($file.Length) bytes"
+
+          & $appBuilder --version
+
+          if ($LASTEXITCODE -ne 0) {
+            Write-Error "app-builder.exe exists but could not execute. Exit code: $LASTEXITCODE"
+            exit 1
+          }
+
+          Write-Output "app-builder.exe executed successfully."
 
       - name: Build Electron Windows installer
         working-directory: ./electron
         run: npm run dist
+             - name: Remove broken app-builder installation
+        shell: pwsh
+        run: |
+          $path = Join-Path "${{ github.workspace }}" "node_modules\app-builder-bin"
+
+          if (Test-Path $path) {
+            Remove-Item $path -Recurse -Force
+          }
+
+          Write-Output "Removed old app-builder-bin installation."
 
       - name: Verify ShopHisab.exe
         shell: pwsh
