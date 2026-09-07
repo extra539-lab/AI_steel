@@ -59,7 +59,6 @@
       "target": [
         "nsis"
       ],
-      "icon": "build/icon.ico",
       "executableName": "ShopHisab",
       "publisherName": "A1 Steel & Cement"
     },
@@ -68,8 +67,6 @@
       "perMachine": false,
       "allowElevation": true,
       "allowToChangeInstallationDirectory": true,
-      "installerIcon": "build/icon.ico",
-      "uninstallerIcon": "build/icon.ico",
       "createDesktopShortcut": true,
       "createStartMenuShortcut": true,
       "deleteAppDataOnUninstall": false
