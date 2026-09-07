@@ -27,7 +27,7 @@ jobs:
           } else {
             $nv = '18'
           }
-          Write-Output "Using Node version: $nv"
+          Write-Output "Using node version: $nv"
           Add-Content -Path $env:GITHUB_OUTPUT -Value "node_version=$nv"
 
       - name: Setup Node
@@ -37,7 +37,7 @@ jobs:
           cache: npm
           cache-dependency-path: package-lock.json
 
-      - name: Install root npm dependencies
+      - name: Install npm dependencies
         run: npm ci --include=optional
 
       - name: Install frontend npm dependencies
@@ -47,7 +47,7 @@ jobs:
       - name: Build frontend
         run: npm run build:frontend
 
-      - name: Setup Python 3.11
+      - name: Setup Python 3.11 for backend build
         uses: actions/setup-python@v5
         with:
           python-version: '3.11'
@@ -67,37 +67,46 @@ jobs:
         shell: pwsh
         run: |
           $backendExe = Join-Path "${{ github.workspace }}" "backend\dist\backend.exe"
+
           if (-Not (Test-Path $backendExe)) {
             Write-Error "backend.exe not found at $backendExe"
             exit 1
           }
-          Write-Output "Found backend.exe at: $backendExe"
 
-      - name: Install Electron npm dependencies
-        working-directory: ./electron
-        run: npm install --include=optional
+          Write-Output "Found backend.exe at $backendExe"
 
-      - name: Verify electron-builder dependencies
+      - name: Install Electron dependencies standalone
         shell: pwsh
         run: |
-          $root = "${{ github.workspace }}\node_modules"
+          Set-Location "${{ github.workspace }}\electron"
 
-          $appBuilderLib = Join-Path $root "app-builder-lib\templates\nsis"
+          if (Test-Path "node_modules") {
+            Remove-Item "node_modules" -Recurse -Force
+          }
+
+          npm install --include=optional --workspaces=false
+
+          Write-Output "Electron standalone dependencies installed."
+
+      - name: Verify standalone Electron builder
+        shell: pwsh
+        run: |
+          $electronRoot = "${{ github.workspace }}\electron\node_modules"
+
+          $appBuilderLib = Join-Path $electronRoot "app-builder-lib\templates\nsis"
           $messages = Join-Path $appBuilderLib "messages.yml"
           $assistedMessages = Join-Path $appBuilderLib "assistedMessages.yml"
-          $appBuilder = Join-Path $root "app-builder-bin\win\x64\app-builder.exe"
+          $appBuilder = Join-Path $electronRoot "app-builder-bin\win\x64\app-builder.exe"
 
-          Write-Output "Checking app-builder-lib NSIS templates..."
-          Write-Output "messages.yml: $messages"
-          Write-Output "assistedMessages.yml: $assistedMessages"
+          Write-Output "Checking standalone Electron dependencies..."
 
           if (-Not (Test-Path -LiteralPath $messages)) {
-            Write-Error "Missing app-builder-lib NSIS template: messages.yml"
+            Write-Error "Missing messages.yml: $messages"
             exit 1
           }
 
           if (-Not (Test-Path -LiteralPath $assistedMessages)) {
-            Write-Error "Missing app-builder-lib NSIS template: assistedMessages.yml"
+            Write-Error "Missing assistedMessages.yml: $assistedMessages"
             exit 1
           }
 
@@ -106,7 +115,7 @@ jobs:
             exit 1
           }
 
-          Write-Output "All required electron-builder files exist."
+          Write-Output "Standalone Electron builder dependencies are complete."
 
       - name: Build Electron Windows installer
         working-directory: ./electron
@@ -116,20 +125,28 @@ jobs:
         shell: pwsh
         run: |
           $winUnpacked = Join-Path "${{ github.workspace }}" "electron\dist\win-unpacked\ShopHisab.exe"
+
           if (-Not (Test-Path $winUnpacked)) {
             Write-Error "ShopHisab.exe not found at $winUnpacked"
             exit 1
           }
-          Write-Output "Found ShopHisab.exe at: $winUnpacked"
+
+          Write-Output "Found ShopHisab.exe at $winUnpacked"
 
       - name: Verify installer file exists
         shell: pwsh
         run: |
-          $installer = Get-ChildItem -Path "${{ github.workspace }}\electron\dist" -Filter "ShopHisab-Setup-*.exe" -File | Select-Object -First 1
+          $installer = Get-ChildItem `
+            -Path "${{ github.workspace }}\electron\dist" `
+            -Filter "ShopHisab-Setup-*.exe" `
+            -File |
+            Select-Object -First 1
+
           if (-not $installer) {
-            Write-Error "ShopHisab installer not found in electron/dist"
+            Write-Error "Installer ShopHisab-Setup-*.exe not found in electron/dist"
             exit 1
           }
+
           Write-Output "Installer: $($installer.FullName)"
 
       - name: Upload installer artifact
