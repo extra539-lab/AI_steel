@@ -1,0 +1,61 @@
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+venv/
+backend/venv/
+backend/.venv/
+.venv/
+
+# Node
+node_modules/
+frontend/node_modules/
+electron/node_modules/
+package-lock.json
+
+# Build / dist
+/build/
+/dist/
+/.cache/
+/.parcel-cache/
+
+# Database / backups
+/data/
+/backups/
+*.db
+*.db-wal
+*.db-shm
+
+# Env files
+.env
+.env.*
+
+# OS
+.DS_Store
+thumbs.db
+
+# Generated archives
+*.zip
+
+# Electron generated/build output
+electron/dist/
+electron/build/
+electron/electron/
+
+# Temporary packaging
+prepack_app/
+
+# Python generated files
+backend/dist/
+backend/build/
+*.spec
+
+# Python cache
+__pycache__/
+*.pyc
+.venv/
+
+# Release archives
+release/*.tar.gz
+release/*.zip

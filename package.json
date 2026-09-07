@@ -1,0 +1,28 @@
+{
+  "name": "a1-steel-cement",
+  "version": "1.0.0",
+  "private": true,
+  "workspaces": [
+    "frontend",
+    "electron"
+  ],
+  "dependencies": {
+    "axios": "^1.20.0",
+    "7zip-bin": "5.2.0"
+  },
+  "scripts": {
+    "dev:backend": "cd backend && ./venv/bin/python run.py",
+    "dev:frontend": "cd frontend && npm run dev",
+    "dev:electron": "cd electron && npm start",
+    "build:frontend": "cd frontend && npm run build",
+    "build:backend:pyinstaller": "cd backend && pyinstaller --noconfirm --clean --onefile run.py --name backend",
+    "build:electron": "cd electron && npm run dist",
+    "build:windows-local": "bash ./scripts/build-windows-backend.sh",
+    "build:windows-ci": "cd .github/workflows && echo 'Use CI to build on Windows runner'",
+    "build:all": "npm run build:frontend && npm run build:backend:pyinstaller && npm run build:electron",
+    "seed": "echo \"No seeding configured for production delivery.\""
+  },
+  "devDependencies": {
+    "7zip-bin": "^5.2.0"
+  }
+}
