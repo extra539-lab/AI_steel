@@ -27,7 +27,6 @@ jobs:
           } else {
             $nv = '18'
           }
-
           Write-Output "Using Node version: $nv"
           Add-Content -Path $env:GITHUB_OUTPUT -Value "node_version=$nv"
 
@@ -68,19 +67,26 @@ jobs:
         shell: pwsh
         run: |
           $backendExe = Join-Path "${{ github.workspace }}" "backend\dist\backend.exe"
-
           if (-Not (Test-Path $backendExe)) {
             Write-Error "backend.exe not found at $backendExe"
             exit 1
           }
-
           Write-Output "Found backend.exe at: $backendExe"
 
       - name: Install Electron npm dependencies
         working-directory: ./electron
         run: npm install --include=optional
 
-      -       - name: Install Windows app-builder binary
+      - name: Remove broken app-builder installation
+        shell: pwsh
+        run: |
+          $path = Join-Path "${{ github.workspace }}" "node_modules\app-builder-bin"
+          if (Test-Path $path) {
+            Remove-Item $path -Recurse -Force
+          }
+          Write-Output "Removed old app-builder-bin installation."
+
+      - name: Install Windows app-builder binary
         shell: pwsh
         run: |
           npm install app-builder-bin@4.0.0 --save-dev --include=optional --force
@@ -114,49 +120,29 @@ jobs:
       - name: Build Electron Windows installer
         working-directory: ./electron
         run: npm run dist
-             - name: Remove broken app-builder installation
-        shell: pwsh
-        run: |
-          $path = Join-Path "${{ github.workspace }}" "node_modules\app-builder-bin"
 
-          if (Test-Path $path) {
-            Remove-Item $path -Recurse -Force
-          }
-
-          Write-Output "Removed old app-builder-bin installation."
-
-      - name: Verify ShopHisab.exe
+      - name: Verify ShopHisab.exe in win-unpacked
         shell: pwsh
         run: |
           $winUnpacked = Join-Path "${{ github.workspace }}" "electron\dist\win-unpacked\ShopHisab.exe"
-
           if (-Not (Test-Path $winUnpacked)) {
             Write-Error "ShopHisab.exe not found at $winUnpacked"
             exit 1
           }
-
           Write-Output "Found ShopHisab.exe at: $winUnpacked"
 
-      - name: Verify installer file
+      - name: Verify installer file exists
         shell: pwsh
         run: |
-          $installer = Get-ChildItem `
-            -Path "${{ github.workspace }}\electron\dist" `
-            -Filter "ShopHisab-Setup-*.exe" `
-            -File |
-            Select-Object -First 1
-
+          $installer = Get-ChildItem -Path "${{ github.workspace }}\electron\dist" -Filter "ShopHisab-Setup-*.exe" -File | Select-Object -First 1
           if (-not $installer) {
-            Write-Error "Installer ShopHisab-Setup-*.exe not found in electron/dist"
+            Write-Error "ShopHisab installer not found in electron/dist"
             exit 1
           }
-
           Write-Output "Installer: $($installer.FullName)"
-          Write-Output "Size: $($installer.Length) bytes"
 
       - name: Upload installer artifact
         uses: actions/upload-artifact@v4
         with:
           name: ShopHisab-Installer
           path: electron/dist/ShopHisab-Setup-*.exe
-          if-no-files-found: error
