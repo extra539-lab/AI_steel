@@ -36,7 +36,7 @@ jobs:
           cache-dependency-path: package-lock.json
 
       - name: Install root npm dependencies
-        run: npm ci
+        run: npm ci --include=optional
 
       - name: Install frontend npm dependencies
         working-directory: ./frontend
@@ -75,7 +75,7 @@ jobs:
 
       - name: Install Electron npm dependencies
         working-directory: ./electron
-        run: npm install
+        run: npm install --include=optional
 
       - name: Build Electron Windows installer
         working-directory: ./electron
