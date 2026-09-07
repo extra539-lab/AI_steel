@@ -12,30 +12,41 @@ jobs:
 
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
 
-      - name: Determine Node version from package.json (default 18)
+      - name: Determine Node version from package.json
         id: node_version
         shell: pwsh
         run: |
           $pkg = Get-Content package.json -Raw | ConvertFrom-Json
-          if ($pkg.engines -and $pkg.engines.node) { $nv = $pkg.engines.node } else { $nv = '18' }
-          Write-Output "Using node version: $nv"
+          if ($pkg.engines -and $pkg.engines.node) {
+            $nv = $pkg.engines.node
+          } else {
+            $nv = '18'
+          }
+
+          Write-Output "Using Node version: $nv"
           Add-Content -Path $env:GITHUB_OUTPUT -Value "node_version=$nv"
 
       - name: Setup Node
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v5
         with:
           node-version: ${{ steps.node_version.outputs.node_version }}
+          cache: npm
+          cache-dependency-path: package-lock.json
 
-      - name: Install npm dependencies (root)
+      - name: Install root npm dependencies
         run: npm ci
+
+      - name: Install frontend npm dependencies
+        working-directory: ./frontend
+        run: npm install
 
       - name: Build frontend
         run: npm run build:frontend
 
-      - name: Setup Python 3.11 for backend build
-        uses: actions/setup-python@v4
+      - name: Setup Python 3.11
+        uses: actions/setup-python@v5
         with:
           python-version: '3.11'
 
@@ -51,31 +62,57 @@ jobs:
           python -m PyInstaller --noconfirm --clean --onefile run.py --name backend
 
       - name: Verify backend.exe exists
-        run: |
-          if (-Not (Test-Path -Path "backend\dist\backend.exe")) { Write-Error "backend.exe not found at backend\\dist\\backend.exe"; exit 1 }
         shell: pwsh
+        run: |
+          $backendExe = Join-Path "${{ github.workspace }}" "backend\dist\backend.exe"
+
+          if (-Not (Test-Path $backendExe)) {
+            Write-Error "backend.exe not found at $backendExe"
+            exit 1
+          }
+
+          Write-Output "Found backend.exe at: $backendExe"
+
+      - name: Install Electron npm dependencies
+        working-directory: ./electron
+        run: npm install
 
       - name: Build Electron Windows installer
         working-directory: ./electron
-        run: |
-          npm run dist
+        run: npm run dist
 
-      - name: Verify ShopHisab.exe in win-unpacked
+      - name: Verify ShopHisab.exe
+        shell: pwsh
         run: |
-          $winUnpacked = Join-Path -Path "${{ github.workspace }}" -ChildPath "electron\dist\win-unpacked\ShopHisab.exe"
-          if (-Not (Test-Path -Path $winUnpacked)) { Write-Error "ShopHisab.exe not found at electron\dist\win-unpacked\ShopHisab.exe"; exit 1 }
+          $winUnpacked = Join-Path "${{ github.workspace }}" "electron\dist\win-unpacked\ShopHisab.exe"
+
+          if (-Not (Test-Path $winUnpacked)) {
+            Write-Error "ShopHisab.exe not found at $winUnpacked"
+            exit 1
+          }
+
           Write-Output "Found ShopHisab.exe at: $winUnpacked"
-        shell: pwsh
 
-      - name: Verify installer file exists
-        run: |
-          $installer = Get-ChildItem -Path "${{ github.workspace }}\electron\dist" -Filter "ShopHisab-Setup-*" -File | Select-Object -First 1
-          if (-not $installer) { Write-Error "Installer ShopHisab-Setup-*.exe not found in electron/dist"; exit 1 }
-          Write-Output "Installer: $($installer.FullName)"
+      - name: Verify installer file
         shell: pwsh
+        run: |
+          $installer = Get-ChildItem `
+            -Path "${{ github.workspace }}\electron\dist" `
+            -Filter "ShopHisab-Setup-*.exe" `
+            -File |
+            Select-Object -First 1
+
+          if (-not $installer) {
+            Write-Error "Installer ShopHisab-Setup-*.exe not found in electron/dist"
+            exit 1
+          }
+
+          Write-Output "Installer: $($installer.FullName)"
+          Write-Output "Size: $($installer.Length) bytes"
 
       - name: Upload installer artifact
         uses: actions/upload-artifact@v4
         with:
           name: ShopHisab-Installer
           path: electron/dist/ShopHisab-Setup-*.exe
+          if-no-files-found: error

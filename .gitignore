@@ -12,7 +12,6 @@ backend/.venv/
 node_modules/
 frontend/node_modules/
 electron/node_modules/
-package-lock.json
 
 # Build / dist
 /build/
