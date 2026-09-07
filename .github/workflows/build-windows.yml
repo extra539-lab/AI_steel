@@ -77,6 +77,21 @@ jobs:
         working-directory: ./electron
         run: npm install --include=optional
 
+      - name: Ensure Windows app-builder binary
+        run: npm install app-builder-bin@4.0.0 --save-dev --include=optional
+
+      - name: Verify Windows app-builder binary
+        shell: pwsh
+        run: |
+          $appBuilder = Join-Path "${{ github.workspace }}" "node_modules\app-builder-bin\win\x64\app-builder.exe"
+
+          if (-Not (Test-Path $appBuilder)) {
+            Write-Error "app-builder.exe not found at: $appBuilder"
+            exit 1
+          }
+
+          Write-Output "Found app-builder.exe at: $appBuilder"
+
       - name: Build Electron Windows installer
         working-directory: ./electron
         run: npm run dist
