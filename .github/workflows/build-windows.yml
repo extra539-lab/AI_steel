@@ -89,7 +89,7 @@ jobs:
       - name: Install Windows app-builder binary
         shell: pwsh
         run: |
-          npm install app-builder-bin@4.0.0 --save-dev --include=optional --force
+          npm install app-builder-bin@4.0.0 --save --include=optional --force
 
       - name: Verify and test Windows app-builder
         shell: pwsh
