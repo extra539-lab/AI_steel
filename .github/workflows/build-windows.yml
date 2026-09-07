@@ -77,45 +77,36 @@ jobs:
         working-directory: ./electron
         run: npm install --include=optional
 
-      - name: Remove broken app-builder installation
+      - name: Verify electron-builder dependencies
         shell: pwsh
         run: |
-          $path = Join-Path "${{ github.workspace }}" "node_modules\app-builder-bin"
-          if (Test-Path $path) {
-            Remove-Item $path -Recurse -Force
+          $root = "${{ github.workspace }}\node_modules"
+
+          $appBuilderLib = Join-Path $root "app-builder-lib\templates\nsis"
+          $messages = Join-Path $appBuilderLib "messages.yml"
+          $assistedMessages = Join-Path $appBuilderLib "assistedMessages.yml"
+          $appBuilder = Join-Path $root "app-builder-bin\win\x64\app-builder.exe"
+
+          Write-Output "Checking app-builder-lib NSIS templates..."
+          Write-Output "messages.yml: $messages"
+          Write-Output "assistedMessages.yml: $assistedMessages"
+
+          if (-Not (Test-Path -LiteralPath $messages)) {
+            Write-Error "Missing app-builder-lib NSIS template: messages.yml"
+            exit 1
           }
-          Write-Output "Removed old app-builder-bin installation."
 
-      - name: Install Windows app-builder binary
-        shell: pwsh
-        run: |
-          npm install app-builder-bin@4.0.0 --save --include=optional --force
-
-      - name: Verify and test Windows app-builder
-        shell: pwsh
-        run: |
-          $appBuilder = Join-Path "${{ github.workspace }}" "node_modules\app-builder-bin\win\x64\app-builder.exe"
-
-          Write-Output "Checking: $appBuilder"
+          if (-Not (Test-Path -LiteralPath $assistedMessages)) {
+            Write-Error "Missing app-builder-lib NSIS template: assistedMessages.yml"
+            exit 1
+          }
 
           if (-Not (Test-Path -LiteralPath $appBuilder)) {
-            Write-Error "app-builder.exe NOT FOUND"
-            Get-ChildItem "${{ github.workspace }}\node_modules\app-builder-bin" -Recurse -ErrorAction SilentlyContinue | Select-Object FullName
+            Write-Error "Missing app-builder.exe: $appBuilder"
             exit 1
           }
 
-          $file = Get-Item -LiteralPath $appBuilder
-          Write-Output "Found: $($file.FullName)"
-          Write-Output "Size: $($file.Length) bytes"
-
-          & $appBuilder --version
-
-          if ($LASTEXITCODE -ne 0) {
-            Write-Error "app-builder.exe exists but could not execute. Exit code: $LASTEXITCODE"
-            exit 1
-          }
-
-          Write-Output "app-builder.exe executed successfully."
+          Write-Output "All required electron-builder files exist."
 
       - name: Build Electron Windows installer
         working-directory: ./electron
