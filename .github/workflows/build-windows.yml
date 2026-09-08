@@ -75,6 +75,78 @@ jobs:
 
           Write-Output "Found backend.exe at $backendExe"
 
+
+      - name: Test backend.exe on Windows
+        shell: pwsh
+        run: |
+          $backendExe = "${{ github.workspace }}\\backend\\dist\\backend.exe"
+          $stdoutLog = "${{ github.workspace }}\\backend\\backend-test-stdout.log"
+          $stderrLog = "${{ github.workspace }}\\backend\\backend-test-stderr.log"
+          $testData = "${{ github.workspace }}\\backend\\test-data"
+
+          Write-Output "Starting backend.exe..."
+          Write-Output "Path: $backendExe"
+
+          New-Item -ItemType Directory -Force -Path $testData | Out-Null
+
+          $env:PORT = "8005"
+          $env:BACKEND_PORT = "8005"
+          $env:APP_ENV = "production"
+          $env:APP_DATA_DIR = $testData
+          $env:PRODUCTION_DATABASE = "$testData\\a1_steel_cement.db"
+          $env:DATABASE_URL = "sqlite:///$testData/a1_steel_cement.db"
+
+          $process = Start-Process `
+            -FilePath $backendExe `
+            -WorkingDirectory "${{ github.workspace }}\\backend" `
+            -PassThru `
+            -RedirectStandardOutput $stdoutLog `
+            -RedirectStandardError $stderrLog
+
+          Write-Output "Backend PID: $($process.Id)"
+
+          Start-Sleep -Seconds 8
+
+          if ($process.HasExited) {
+            Write-Output "backend.exe exited unexpectedly."
+            Write-Output "Exit code: $($process.ExitCode)"
+
+            Write-Output "--- STDOUT ---"
+            Get-Content $stdoutLog -ErrorAction SilentlyContinue
+
+            Write-Output "--- STDERR ---"
+            Get-Content $stderrLog -ErrorAction SilentlyContinue
+
+            exit 1
+          }
+
+          try {
+            $response = Invoke-WebRequest `
+              -Uri "http://127.0.0.1:8005/health" `
+              -UseBasicParsing `
+              -TimeoutSec 10
+
+            Write-Output "Backend HTTP status: $($response.StatusCode)"
+            Write-Output "Backend response: $($response.Content)"
+          }
+          catch {
+            Write-Output "Backend health check failed."
+            Write-Output $_
+
+            Write-Output "--- STDOUT ---"
+            Get-Content $stdoutLog -ErrorAction SilentlyContinue
+
+            Write-Output "--- STDERR ---"
+            Get-Content $stderrLog -ErrorAction SilentlyContinue
+
+            Stop-Process -Id $process.Id -Force -ErrorAction SilentlyContinue
+            exit 1
+          }
+
+          Stop-Process -Id $process.Id -Force -ErrorAction SilentlyContinue
+
+          Write-Output "backend.exe Windows startup test PASSED."
+
       - name: Install Electron dependencies standalone
         shell: pwsh
         run: |
