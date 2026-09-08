@@ -4,6 +4,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from app.core.config import settings
 from app.core.database import Base, engine, SessionLocal
 from app.core.migration import run_database_migration
+from app.core.seed import ensure_default_products
 from app.models import Setting
 from app.routers import (
     products_router,
@@ -38,7 +39,7 @@ app.add_middleware(
 @app.on_event("startup")
 def on_startup():
     # 1. Non-destructive migration and sequence sync
-    run_database_migration()
+    migration_result = run_database_migration()
 
     # 2. Ensure default settings exist
     db = SessionLocal()
@@ -49,6 +50,13 @@ def on_startup():
             # no demo or sample business/contact text appears for new customers.
             db.add(Setting())
             db.commit()
+        # Ensure default products exist (idempotent). Run always to keep production in sync.
+        try:
+            created = ensure_default_products(db)
+            if created:
+                print(f"[seed] Created default products: {created}")
+        except Exception as se:
+            print(f"[seed] Failed to ensure default products: {se}")
     finally:
         db.close()
 

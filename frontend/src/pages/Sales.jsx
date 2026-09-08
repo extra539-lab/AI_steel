@@ -459,6 +459,7 @@ export default function Sales({ onOpenReceipt }) {
                     <option value="">-- Select Category --</option>
                     <option value="cement">Cement</option>
                     <option value="steel">Steel</option>
+                    <option value="other">Other Materials</option>
                   </select>
                 </div>
               </div>
@@ -512,6 +513,31 @@ export default function Sales({ onOpenReceipt }) {
                         <option value="">-- Select Steel --</option>
                         {products
                           .filter((p) => (p.category || '').toLowerCase() === 'steel')
+                          .map((p) => (
+                            <option key={p.id} value={p.id}>{p.name}</option>
+                          ))}
+                      </select>
+                    </div>
+                  )}
+
+                  {selectedCategory === 'other' && (
+                    <div className="form-group" style={{ margin: 0 }}>
+                      <label className="form-label">OTHER MATERIALS (Unit: PCS)</label>
+                      <select
+                        value={selectedProductId}
+                        onChange={(e) => {
+                          const v = e.target.value
+                          setSelectedProductId(v)
+                          if (v) handleProductChange(v)
+                          else {
+                            if (activeProductType === 'other') { setSelectedProductId(''); setActiveProductType('') }
+                          }
+                        }}
+                        className="form-control"
+                      >
+                        <option value="">-- Select Item --</option>
+                        {products
+                          .filter((p) => (p.category || '').toLowerCase() === 'other materials')
                           .map((p) => (
                             <option key={p.id} value={p.id}>{p.name}</option>
                           ))}
@@ -609,7 +635,7 @@ export default function Sales({ onOpenReceipt }) {
                             <strong>{item.product_name}</strong>
                           </td>
                           <td>
-                            <span className={`badge ${item.category.toLowerCase() === 'cement' ? 'badge-cement' : 'badge-steel'}`}>
+                            <span className={`badge ${item.category.toLowerCase() === 'cement' ? 'badge-cement' : item.category.toLowerCase() === 'steel' ? 'badge-steel' : 'badge-other'}`}>
                               {item.unit}
                             </span>
                           </td>

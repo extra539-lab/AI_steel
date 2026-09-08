@@ -202,7 +202,7 @@ export default function Inventory() {
                         <div style={{ fontSize: '11px', color: 'var(--text-muted)' }}>{t.product_code}</div>
                       </td>
                       <td>
-                        <span className={`badge ${t.category?.toLowerCase() === 'cement' ? 'badge-cement' : 'badge-steel'}`}>
+                        <span className={`badge ${t.category?.toLowerCase() === 'cement' ? 'badge-cement' : t.category?.toLowerCase() === 'steel' ? 'badge-steel' : 'badge-other'}`}>
                           {t.category} ({t.unit})
                         </span>
                       </td>

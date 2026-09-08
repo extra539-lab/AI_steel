@@ -423,8 +423,8 @@ export default function Reports() {
                       <td><strong>{item.product_code}</strong></td>
                       <td><strong>{item.product_name}</strong></td>
                       <td>
-                        <span className={`badge ${item.category.toLowerCase() === 'cement' ? 'badge-cement' : 'badge-steel'}`}>
-                          {item.category}
+                        <span className={`badge ${item.category.toLowerCase() === 'cement' ? 'badge-cement' : item.category.toLowerCase() === 'steel' ? 'badge-steel' : 'badge-other'}`}>
+                          {item.category} ({item.unit})
                         </span>
                       </td>
                       <td style={{ textAlign: 'center', fontWeight: 'bold' }}>

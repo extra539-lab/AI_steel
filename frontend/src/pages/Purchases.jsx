@@ -347,6 +347,15 @@ export default function Purchases({ preselectedSupplierId = null }) {
                             </option>
                           ))}
                       </optgroup>
+                      <optgroup label="📦 Other Materials (Unit: PCS)">
+                        {products
+                          .filter((p) => p.category.toLowerCase() === 'other materials')
+                          .map((p) => (
+                            <option key={p.id} value={p.id}>
+                              {p.name} — Current: {p.current_stock} PCS — Buy Rate: {formatPKR(p.purchase_price)}
+                            </option>
+                          ))}
+                      </optgroup>
                     </select>
                   </div>
 
@@ -411,7 +420,7 @@ export default function Purchases({ preselectedSupplierId = null }) {
                             <div style={{ fontSize: '11px', color: 'var(--text-muted)' }}>{item.product_code}</div>
                           </td>
                           <td>
-                            <span className={`badge ${item.category.toLowerCase() === 'cement' ? 'badge-cement' : 'badge-steel'}`}>
+                            <span className={`badge ${item.category.toLowerCase() === 'cement' ? 'badge-cement' : item.category.toLowerCase() === 'steel' ? 'badge-steel' : 'badge-other'}`}>
                               {item.category} ({item.unit})
                             </span>
                           </td>

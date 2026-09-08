@@ -176,13 +176,19 @@ export default function Products() {
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '12px' }}>
           {/* Category Tabs */}
           <div style={{ display: 'flex', gap: '8px' }}>
-            {['All', 'Cement', 'Steel'].map((cat) => (
+            {['All', 'Cement', 'Steel', 'Other Materials'].map((cat) => (
               <button
                 key={cat}
                 onClick={() => setCategoryFilter(cat)}
                 className={`btn btn-sm ${categoryFilter === cat ? 'btn-primary' : 'btn-outline'}`}
               >
-                {cat === 'All' ? '📦 All Materials' : cat === 'Cement' ? '🧱 Cement (Bags)' : '🏗️ Steel (KG)'}
+                {cat === 'All'
+                  ? '📦 All Materials'
+                  : cat === 'Cement'
+                  ? '🧱 Cement (Bags)'
+                  : cat === 'Steel'
+                  ? '🏗️ Steel (KG)'
+                  : '📦 Other Materials'}
               </button>
             ))}
           </div>
@@ -234,7 +240,11 @@ export default function Products() {
                         <strong>{p.name}</strong>
                       </td>
                       <td>
-                        <span className={`badge ${p.category.toLowerCase() === 'cement' ? 'badge-cement' : 'badge-steel'}`}>
+                        <span
+                          className={`badge ${
+                            p.category.toLowerCase() === 'cement' ? 'badge-cement' : p.category.toLowerCase() === 'steel' ? 'badge-steel' : 'badge-other'
+                          }`}
+                        >
                           {p.category}
                         </span>
                       </td>

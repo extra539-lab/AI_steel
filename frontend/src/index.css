@@ -356,6 +356,12 @@ select.form-control {
   border: 1px solid rgba(245, 158, 11, 0.35);
 }
 
+.badge-other {
+  background-color: rgba(124, 58, 237, 0.12);
+  color: #7c3aed;
+  border: 1px solid rgba(124, 58, 237, 0.2);
+}
+
 .badge-success {
   background-color: var(--success-light);
   color: #34d399;
