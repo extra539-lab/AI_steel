@@ -234,6 +234,80 @@ ipcMain.handle('export-backup-file', async (_event, filename) => {
   return filePath;
 });
 
+// Print an HTML string in a hidden window and send back success/failure.
+ipcMain.handle('print-receipt', async (_event, html /*, options */) => {
+  let win = null;
+  try {
+    win = new BrowserWindow({
+      width: 600,
+      height: 800,
+      show: false,
+      webPreferences: {
+        contextIsolation: true,
+        nodeIntegration: false,
+      },
+    });
+
+    const dataUrl = 'data:text/html;charset=utf-8,' + encodeURIComponent(html);
+    await win.loadURL(dataUrl);
+
+    // Wait for load to finish
+    await new Promise((resolve) => {
+      if (win.webContents.isLoading()) {
+        win.webContents.once('did-finish-load', resolve);
+      } else resolve();
+    });
+
+    // Check available printers
+    let printers = [];
+    try {
+      printers = win.webContents.getPrinters();
+    } catch (e) {
+      writeMainLog(`[print] getPrinters failed: ${e}`);
+    }
+
+    if (!printers || printers.length === 0) {
+      const msg = 'No printers configured. Please install/configure a printer.';
+      writeMainLog(`[print] failed: ${msg}`);
+      try { dialog.showErrorBox('Print Failed', msg); } catch (e) {}
+      return { success: false, failureReason: msg };
+    }
+
+    // Single print call
+    const printResult = await new Promise((resolve) => {
+      try {
+        win.webContents.print({ silent: false, printBackground: true }, (success, failureReason) => {
+          resolve({ success: !!success, failureReason: failureReason || null });
+        });
+      } catch (err) {
+        resolve({ success: false, failureReason: String(err) });
+      }
+    });
+
+    if (!printResult.success) {
+      const msg = printResult.failureReason || 'Unknown printer error or user cancelled.';
+      writeMainLog(`[print] failed: ${msg}`);
+      try { dialog.showErrorBox('Print Failed', msg); } catch (e) {}
+      return { success: false, failureReason: msg };
+    }
+
+    return { success: true, failureReason: null };
+  } catch (err) {
+    const msg = err && err.stack ? err.stack : String(err);
+    writeMainLog(`[print] exception: ${msg}`);
+    try { dialog.showErrorBox('Print Failed', `Printing failed: ${msg}`); } catch (e) {}
+    return { success: false, failureReason: msg };
+  } finally {
+    try {
+      if (win) {
+        win.destroy && win.destroy();
+      }
+    } catch (e) {
+      // best-effort
+    }
+  }
+});
+
 app.whenReady().then(() => {
   createWindow();
 

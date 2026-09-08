@@ -5,6 +5,8 @@ contextBridge.exposeInMainWorld('electronAPI', {
   getAppDataPath: () => ipcRenderer.invoke('get-app-data-path'),
   openBackupFolder: () => ipcRenderer.invoke('open-backup-folder'),
   exportBackupFile: (filename) => ipcRenderer.invoke('export-backup-file', filename),
+  // Print a prepared HTML string in the main process. Returns {success, failureReason}
+  printReceipt: (html, options) => ipcRenderer.invoke('print-receipt', html, options || {}),
 })
 
 window.addEventListener('DOMContentLoaded', () => {

@@ -6,14 +6,60 @@ export default function ThermalReceipt({ sale, settings, onClose }) {
   const receiptRef = useRef(null)
 
   const handlePrint = () => {
+    // If running inside Electron, use main-process printing to target only the receipt HTML.
     try {
-      window.print()
-      // print second copy after short delay
-      setTimeout(() => {
-        try { window.print() } catch (e) { console.error('Second print failed', e) }
-      }, 600)
+      const doPrint = async () => {
+        if (window.electronAPI && window.electronAPI.printReceipt && receiptRef.current) {
+          try {
+            // Collect stylesheet texts (inline styles and linked CSS) to preserve design
+            let cssTexts = [];
+            // inline <style> tags
+            document.querySelectorAll('style').forEach((s) => cssTexts.push(s.innerText));
+            // linked stylesheets
+            const links = Array.from(document.querySelectorAll('link[rel="stylesheet"]'));
+            for (const l of links) {
+              try {
+                const href = l.href;
+                const resp = await fetch(href);
+                if (resp.ok) {
+                  const txt = await resp.text();
+                  cssTexts.push(txt);
+                }
+              } catch (e) {
+                // ignore fetch failures, continue
+                console.warn('Could not fetch stylesheet', l.href, e);
+              }
+            }
+
+            // Keep entire stylesheet text if it mentions receipt-related selectors/rules
+            const receiptCss = cssTexts
+              .filter((txt) => /thermal|printable-area|@page|@media print|thermal-receipt|\.printable-area|\.thermal-/i.test(txt))
+              .join('\n');
+
+            const html = `<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><style>${receiptCss}</style></head><body>${receiptRef.current.outerHTML}</body></html>`;
+
+            // request a single copy — ensure only one print job is created
+            const res = await window.electronAPI.printReceipt(html);
+            if (!res || !res.success) {
+              console.error('Print failed:', res && res.failureReason);
+            }
+            return;
+          } catch (err) {
+            console.error('Electron print failed', err);
+          }
+        }
+
+        // Fallback to window.print for non-Electron environments (single job)
+        try {
+          window.print();
+        } catch (e) {
+          console.error('Print failed', e);
+        }
+      };
+
+      doPrint();
     } catch (e) {
-      console.error('Print failed', e)
+      console.error('Print failed', e);
     }
   }
 
