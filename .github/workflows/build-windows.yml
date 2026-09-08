@@ -61,7 +61,7 @@ jobs:
       - name: Build backend.exe with PyInstaller
         working-directory: ./backend
         run: |
-          python -m PyInstaller --noconfirm --clean --onefile run.py --name backend
+          python -m PyInstaller --noconfirm --clean backend.spec
 
       - name: Verify backend.exe exists
         shell: pwsh
