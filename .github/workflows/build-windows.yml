@@ -193,6 +193,28 @@ jobs:
         working-directory: ./electron
         run: npm run dist
 
+      - name: Verify packaged backend and frontend resources exist
+        shell: pwsh
+        run: |
+          $backendInResources = Join-Path "${{ github.workspace }}" "electron\dist\win-unpacked\resources\backend\backend.exe"
+          $frontendInResources = Join-Path "${{ github.workspace }}" "electron\dist\win-unpacked\resources\app\frontend\index.html"
+
+          if (-Not (Test-Path $backendInResources)) {
+            Write-Error "Packaged backend.exe missing from resources: $backendInResources"
+            Get-ChildItem "${{ github.workspace }}\electron\dist\win-unpacked" -Recurse -Force | Select-Object FullName
+            exit 1
+          }
+
+          if (-Not (Test-Path $frontendInResources)) {
+            Write-Error "Packaged frontend index missing from resources: $frontendInResources"
+            Get-ChildItem "${{ github.workspace }}\electron\dist\win-unpacked" -Recurse -Force | Select-Object FullName
+            exit 1
+          }
+
+          Write-Output "Verified packaged backend and frontend resources:"
+          Write-Output "backend=$backendInResources"
+          Write-Output "frontend=$frontendInResources"
+
       - name: Verify ShopHisab.exe in win-unpacked
         shell: pwsh
         run: |

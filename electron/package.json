@@ -41,15 +41,15 @@
     ],
     "extraResources": [
       {
-        "from": "../backend/dist/",
-        "to": "backend/",
+        "from": "../backend/dist",
+        "to": "backend",
         "filter": [
           "**/*"
         ]
       },
       {
-        "from": "../frontend/dist/",
-        "to": "app/frontend/",
+        "from": "../frontend/dist",
+        "to": "app/frontend",
         "filter": [
           "**/*"
         ]

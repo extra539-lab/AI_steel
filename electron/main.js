@@ -88,37 +88,58 @@ async function waitForBackend(url, timeout = 15000) {
   return false;
 }
 
-function startBackendForProduction(resourcesPath, port = DEFAULT_BACKEND_PORT) {
+function resolveProductionBackendPath(resourcesPath) {
   const backendExeName = process.platform === 'win32' ? 'backend.exe' : 'backend';
-  const backendPath = path.join(resourcesPath, 'backend', backendExeName);
+  const candidates = [
+    path.join(resourcesPath, 'backend', backendExeName),
+    path.join(resourcesPath, 'backend', 'dist', backendExeName),
+    path.join(resourcesPath, 'backend', 'backend', backendExeName),
+    path.join(resourcesPath, 'app', 'backend', backendExeName),
+    path.join(resourcesPath, '..', 'backend', backendExeName),
+  ].filter(Boolean);
+
+  const match = candidates.find((candidate) => fs.existsSync(candidate));
+  return { match, candidates };
+}
+
+function startBackendForProduction(resourcesPath, port = DEFAULT_BACKEND_PORT) {
+  const { match, candidates } = resolveProductionBackendPath(resourcesPath);
   const userData = app.getPath('userData');
   const appDataDatabase = path.join(userData, 'data', 'a1_steel_cement.db');
 
   try {
-    // Ensure the backend executable exists before spawning to avoid async ENOENT
-    if (!fs.existsSync(backendPath)) {
-      const msg = `Backend executable not found at: ${backendPath}`;
+    if (!match) {
+      const msg = `Backend executable not found. Searched: ${candidates.join('; ')}`;
       writeMainLog(msg);
       throw new Error(msg);
     }
 
-    backendProcess = spawn(backendPath, [], {
+    writeMainLog(`Starting packaged backend: ${match}`);
+    const backendDir = path.dirname(match);
+
+    backendProcess = spawn(match, [], {
       detached: false,
+      cwd: backendDir,
       stdio: ['ignore', 'pipe', 'pipe'],
       windowsHide: true,
       env: Object.assign({}, process.env, {
         PORT: String(port),
+        BACKEND_PORT: String(port),
         APP_ENV: 'production',
         APP_DATA_DIR: userData,
         PRODUCTION_DATABASE: appDataDatabase,
         DATABASE_URL: `sqlite:///${appDataDatabase}`,
+        PYTHONUNBUFFERED: '1',
       }),
     });
-    // attach error handler to avoid unhandled 'error' events from spawn
+
     backendProcess.on && backendProcess.on('error', (err) => {
       writeMainLog(`backend spawn error: ${err && err.stack ? err.stack : String(err)}`);
     });
-    // capture backend stdout/stderr to main-process log
+    backendProcess.on && backendProcess.on('exit', (code, signal) => {
+      writeMainLog(`backend exited with code=${code} signal=${signal}`);
+    });
+
     try {
       if (backendProcess.stdout) {
         backendProcess.stdout.on('data', (d) => writeMainLog(`backend stdout: ${d.toString()}`));
@@ -131,23 +152,48 @@ function startBackendForProduction(resourcesPath, port = DEFAULT_BACKEND_PORT) {
     }
 
     backendProcess.unref && backendProcess.unref();
+    return match;
   } catch (err) {
     console.error('Failed to start backend executable:', err);
     throw err;
   }
 }
 
+function resolvePythonExecutable(projectRoot) {
+  const backendRoot = path.join(projectRoot, 'backend');
+  const candidates = [
+    process.env.PYTHON_PATH,
+    path.join(backendRoot, process.platform === 'win32' ? 'venv\\Scripts\\python.exe' : 'venv/bin/python'),
+    path.join(backendRoot, process.platform === 'win32' ? '.venv\\Scripts\\python.exe' : '.venv/bin/python'),
+    path.join(projectRoot, process.platform === 'win32' ? '.venv\\Scripts\\python.exe' : '.venv/bin/python'),
+    process.platform === 'win32' ? 'python.exe' : 'python',
+  ].filter(Boolean);
+
+  return candidates.find((candidate) => candidate && fs.existsSync(candidate)) || candidates[candidates.length - 1];
+}
 
 function startBackendForDev(projectRoot, port = DEFAULT_BACKEND_PORT) {
-  // In development use venv python
   const backendRun = path.join(projectRoot, 'backend', 'run.py');
-  const python = process.env.PYTHON_PATH || path.join(projectRoot, 'backend', 'venv', 'bin', 'python');
+  const python = resolvePythonExecutable(projectRoot);
+  const backendDir = path.join(projectRoot, 'backend');
+
+  writeMainLog(`Starting dev backend with: ${python} ${backendRun}`);
   backendProcess = spawn(python, [backendRun], {
     detached: false,
-    stdio: 'ignore',
+    cwd: backendDir,
+    stdio: ['ignore', 'pipe', 'pipe'],
     windowsHide: true,
-    env: Object.assign({}, process.env, { PORT: String(port) }),
+    env: Object.assign({}, process.env, {
+      PORT: String(port),
+      BACKEND_PORT: String(port),
+    }),
   });
+
+  backendProcess.on && backendProcess.on('error', (err) => {
+    writeMainLog(`dev backend spawn error: ${err && err.stack ? err.stack : String(err)}`);
+  });
+  backendProcess.stdout && backendProcess.stdout.on('data', (d) => writeMainLog(`dev backend stdout: ${d.toString()}`));
+  backendProcess.stderr && backendProcess.stderr.on('data', (d) => writeMainLog(`dev backend stderr: ${d.toString()}`));
   backendProcess.unref && backendProcess.unref();
 }
 
