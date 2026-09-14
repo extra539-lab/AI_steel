@@ -212,15 +212,20 @@ jobs:
         shell: pwsh
         run: |
           $appExe = Join-Path "${{ github.workspace }}" "electron\dist\win-unpacked\ShopHisab.exe"
-          $logFile = Join-Path "${{ github.workspace }}" "electron\dist\win-unpacked\app-smoke.log"
+          $stdoutLog = Join-Path "${{ github.workspace }}" "electron\dist\smoke-test-stdout.log"
+          $stderrLog = Join-Path "${{ github.workspace }}" "electron\dist\smoke-test-stderr.log"
 
           if (-Not (Test-Path $appExe)) {
             Write-Error "Packaged app exe missing: $appExe"
             exit 1
           }
 
+          New-Item -ItemType Directory -Force -Path "${{ github.workspace }}\electron\dist" | Out-Null
+          New-Item -ItemType File -Force -Path $stdoutLog | Out-Null
+          New-Item -ItemType File -Force -Path $stderrLog | Out-Null
+
           Write-Output "Starting packaged Electron app: $appExe"
-          $process = Start-Process -FilePath $appExe -PassThru -RedirectStandardOutput $logFile -RedirectStandardError $logFile
+          $process = Start-Process -FilePath $appExe -PassThru -RedirectStandardOutput $stdoutLog -RedirectStandardError $stderrLog
 
           $deadline = (Get-Date).AddSeconds(30)
           $healthy = $false
@@ -240,7 +245,10 @@ jobs:
 
           if (-Not $healthy) {
             Write-Error "Packaged app failed to become healthy on http://127.0.0.1:8005/health"
-            Get-Content $logFile -ErrorAction SilentlyContinue
+            Write-Output "--- STDOUT ---"
+            Get-Content $stdoutLog -ErrorAction SilentlyContinue
+            Write-Output "--- STDERR ---"
+            Get-Content $stderrLog -ErrorAction SilentlyContinue
             Stop-Process -Id $process.Id -Force -ErrorAction SilentlyContinue
             exit 1
           }
