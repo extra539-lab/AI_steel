@@ -1,6 +1,6 @@
 # BUILD_WINDOWS.md
 
-This document describes how to build a standalone Windows installer (A1-Steel-Cement-Setup.exe) for the A1 Steel & Cement desktop application.
+This document describes how to build a standalone Windows application for A1 Steel & Cement. The recommended delivery file is the portable `A1-Steel-Cement-Start-1.0.0.exe`: it can be copied to another Windows computer and launched directly, without Node.js, Python, VS Code, or a terminal.
 
 Overview
 --------
@@ -27,13 +27,11 @@ High-level steps
 
 Commands (run on Windows, from project root)
 --------------------------------------------
-# 1. Install project dependencies
+# 1. Install project dependencies (developer/build machine only)
 npm install
-cd frontend
-npm install
-cd ../electron
-npm install
-cd ..
+
+# 1b. Install Python build dependencies (developer/build machine only)
+py -3.12 -m pip install -r backend/requirements.txt pyinstaller
 
 # 2. Build frontend
 npm run build:frontend
@@ -43,17 +41,24 @@ npm run build:frontend
 # Ensure you have a virtualenv or Python environment with project dependencies installed
 # From project root (Windows):
 cd backend
-pyinstaller --noconfirm --clean --onefile run.py --name backend
+py -3.12 -m PyInstaller --noconfirm --clean --onefile --console --collect-submodules app run.py --name backend
 # After this, the single `backend.exe` will be in `backend/dist/`.
 cd ..
 
 # 4. Package Electron app (this will include backend exe and frontend dist)
-cd electron
-npm run dist
+# This produces ONE portable Start EXE. It contains Electron, the React UI,
+# and the Python/SQLite backend.
+npm run build:windows
 
 # 5. Result
-# The installer will be in electron/dist/ (electron-builder output)
-# Example: electron/dist/A1 Steel & Cement Setup 1.0.0.exe
+# The portable file will be in electron/dist/:
+# electron/dist/A1-Steel-Cement-Start-1.0.0.exe
+# Copy only that EXE to another compatible 64-bit Windows PC and double-click it.
+# No supporting folder, Node.js, Python, VS Code, or terminal is needed.
+#
+# Optional traditional installer:
+# npm run build:windows:installer
+# This creates electron/dist/ShopHisab-1.0.0-nsis.exe.
 
 Notes & Project modifications performed
 --------------------------------------
@@ -70,10 +75,10 @@ Database storage and user data
 
 Testing on a clean Windows PC
 -----------------------------
-1. Copy the generated `A1 Steel & Cement Setup.exe` to the clean machine.
-2. Run the installer and install to `C:\Program Files\A1 Steel & Cement`.
-3. Launch from Start Menu. The application will extract resources, start the backend (packaged exe), and then show the UI.
-4. App data (SQLite DB) will be written to `%APPDATA%\A1SteelCement\a1_steel_cement.db` if you configure the installer/launcher to set `DATABASE_URL` appropriately.
+1. Copy `A1-Steel-Cement-Start-1.0.0.exe` to the clean Windows PC.
+2. Double-click it. Do not run it from a ZIP file; extract it first.
+3. The application starts its packaged backend and opens the UI. Closing VS Code or a terminal cannot affect it.
+4. App data (SQLite DB) is stored per Windows user in the app's `%APPDATA%` folder and stays on that computer when the portable EXE is upgraded or moved.
 
 Troubleshooting
 ---------------

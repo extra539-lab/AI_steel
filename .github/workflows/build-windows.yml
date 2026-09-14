@@ -37,12 +37,8 @@ jobs:
           cache: npm
           cache-dependency-path: package-lock.json
 
-      - name: Install npm dependencies
+      - name: Install workspace npm dependencies once
         run: npm ci --include=optional
-
-      - name: Install frontend npm dependencies
-        working-directory: ./frontend
-        run: npm install
 
       - name: Build frontend
         run: npm run build:frontend
@@ -147,30 +143,16 @@ jobs:
 
           Write-Output "backend.exe Windows startup test PASSED."
 
-      - name: Install Electron dependencies standalone
+      - name: Verify workspace Electron dependencies
         shell: pwsh
         run: |
-          Set-Location "${{ github.workspace }}\electron"
-
-          if (Test-Path "node_modules") {
-            Remove-Item "node_modules" -Recurse -Force
-          }
-
-          npm install --include=optional --workspaces=false
-
-          Write-Output "Electron standalone dependencies installed."
-
-      - name: Verify standalone Electron builder
-        shell: pwsh
-        run: |
-          $electronRoot = "${{ github.workspace }}\electron\node_modules"
-
+          $electronRoot = Join-Path "${{ github.workspace }}" "node_modules"
           $appBuilderLib = Join-Path $electronRoot "app-builder-lib\templates\nsis"
           $messages = Join-Path $appBuilderLib "messages.yml"
           $assistedMessages = Join-Path $appBuilderLib "assistedMessages.yml"
           $appBuilder = Join-Path $electronRoot "app-builder-bin\win\x64\app-builder.exe"
 
-          Write-Output "Checking standalone Electron dependencies..."
+          Write-Output "Checking workspace Electron dependencies..."
 
           if (-Not (Test-Path -LiteralPath $messages)) {
             Write-Error "Missing messages.yml: $messages"
@@ -187,11 +169,10 @@ jobs:
             exit 1
           }
 
-          Write-Output "Standalone Electron builder dependencies are complete."
+          Write-Output "Workspace Electron builder dependencies are complete."
 
       - name: Build Electron Windows installer
-        working-directory: ./electron
-        run: npm run dist
+        run: npm --workspace electron run build:win:installer
 
       - name: Verify packaged backend and frontend resources exist
         shell: pwsh
@@ -227,6 +208,48 @@ jobs:
 
           Write-Output "Found ShopHisab.exe at $winUnpacked"
 
+      - name: Smoke test packaged win-unpacked app
+        shell: pwsh
+        run: |
+          $appExe = Join-Path "${{ github.workspace }}" "electron\dist\win-unpacked\ShopHisab.exe"
+          $logFile = Join-Path "${{ github.workspace }}" "electron\dist\win-unpacked\app-smoke.log"
+
+          if (-Not (Test-Path $appExe)) {
+            Write-Error "Packaged app exe missing: $appExe"
+            exit 1
+          }
+
+          Write-Output "Starting packaged Electron app: $appExe"
+          $process = Start-Process -FilePath $appExe -PassThru -RedirectStandardOutput $logFile -RedirectStandardError $logFile
+
+          $deadline = (Get-Date).AddSeconds(30)
+          $healthy = $false
+
+          while ((Get-Date) -lt $deadline) {
+            try {
+              $response = Invoke-WebRequest -Uri "http://127.0.0.1:8005/health" -UseBasicParsing -TimeoutSec 5
+              if ($response.StatusCode -eq 200) {
+                $healthy = $true
+                break
+              }
+            }
+            catch {
+              Start-Sleep -Seconds 1
+            }
+          }
+
+          if (-Not $healthy) {
+            Write-Error "Packaged app failed to become healthy on http://127.0.0.1:8005/health"
+            Get-Content $logFile -ErrorAction SilentlyContinue
+            Stop-Process -Id $process.Id -Force -ErrorAction SilentlyContinue
+            exit 1
+          }
+
+          Write-Output "Packaged app health check passed: http://127.0.0.1:8005/health"
+
+          Stop-Process -Id $process.Id -Force -ErrorAction SilentlyContinue
+          Write-Output "Packaged app shutdown test passed."
+
       - name: Verify installer file exists
         shell: pwsh
         run: |
@@ -238,6 +261,7 @@ jobs:
 
           if (-not $installer) {
             Write-Error "Installer ShopHisab-Setup-*.exe not found in electron/dist"
+            Get-ChildItem "${{ github.workspace }}\electron\dist" -Force | Select-Object FullName
             exit 1
           }
 

@@ -2,10 +2,17 @@ import os
 import sys
 from datetime import datetime, timedelta
 from decimal import Decimal
+from pathlib import Path
+
+os.environ.setdefault("APP_ENV", "test")
+os.environ.setdefault("APP_DATA_DIR", str(Path(__file__).resolve().parent / "test-data"))
+os.environ.setdefault("PRODUCTION_DATABASE", str(Path(__file__).resolve().parent / "test-data" / "a1_steel_cement.db"))
+os.environ.setdefault("DATABASE_URL", f"sqlite:///{Path(__file__).resolve().parent / 'test-data' / 'a1_steel_cement.db'}")
 
 from app.core.config import settings
 from app.core.database import Base, engine, SessionLocal
 from app.core.migration import run_database_migration
+from app.core.seed import ensure_baseline_application_data
 from app.models import Product, Supplier, Customer, Sale, SaleItem, Purchase, PurchaseItem, CustomerPayment, SupplierPayment, InventoryTransaction
 from app.services.billing_service import BillingService
 from app.services.purchase_service import PurchaseService
@@ -31,6 +38,9 @@ def run_full_verification():
     print(f"✓ [TEST 1] Non-Destructive Migration: Verified OK ({len(mig_res.get('changes', []))} schema operations)")
 
     db = SessionLocal()
+
+    seed_result = ensure_baseline_application_data(db)
+    print(f"[seed] Initialized baseline data: {seed_result}")
 
     # 2. Verify Catalog & Precision
     products_count = db.query(Product).count()

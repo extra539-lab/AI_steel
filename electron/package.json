@@ -10,12 +10,13 @@
     "pack": "electron-builder --dir",
     "dist": "electron-builder --win --x64",
     "build:win": "electron-builder --win --x64",
+    "build:win:installer": "electron-builder --win nsis --x64",
     "build:win:portable": "electron-builder --win portable --x64"
   },
   "devDependencies": {
+    "app-builder-bin": "^4.0.0",
     "electron": "^31.7.7",
-    "electron-builder": "^24.6.0",
-    "app-builder-bin": "4.0.0"
+    "electron-builder": "^24.6.0"
   },
   "dependencies": {
     "axios": "^1.20.0"
@@ -25,9 +26,10 @@
   },
   "build": {
     "electronVersion": "31.7.7",
+    "npmRebuild": false,
     "appId": "com.shophisab.app",
     "productName": "ShopHisab",
-    "artifactName": "ShopHisab-Setup-${version}.${ext}",
+    "artifactName": "ShopHisab-Setup-${version}.exe",
     "directories": {
       "output": "dist"
     },
@@ -44,7 +46,7 @@
         "from": "../backend/dist",
         "to": "backend",
         "filter": [
-          "**/*"
+          "backend.exe"
         ]
       },
       {
@@ -56,8 +58,10 @@
       }
     ],
     "win": {
+      "signAndEditExecutable": false,
       "target": [
-        "nsis"
+        "nsis",
+        "portable"
       ],
       "executableName": "ShopHisab",
       "publisherName": "A1 Steel & Cement"
@@ -70,6 +74,10 @@
       "createDesktopShortcut": true,
       "createStartMenuShortcut": true,
       "deleteAppDataOnUninstall": false
+    },
+    "portable": {
+      "artifactName": "A1-Steel-Cement-Start-${version}.exe",
+      "requestExecutionLevel": "user"
     }
   },
   "keywords": [

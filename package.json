@@ -15,11 +15,13 @@
     "dev:frontend": "cd frontend && npm run dev",
     "dev:electron": "cd electron && npm start",
     "build:frontend": "cd frontend && npm run build",
-    "build:backend:pyinstaller": "cd backend && pyinstaller --noconfirm --clean --onefile run.py --name backend",
+    "build:backend:pyinstaller": "cd backend && py -3.12 -m PyInstaller --noconfirm --clean --onefile --console --collect-submodules app --name backend run.py",
     "build:electron": "cd electron && npm run dist",
     "build:windows-local": "bash ./scripts/build-windows-backend.sh",
     "build:windows-ci": "cd .github/workflows && echo 'Use CI to build on Windows runner'",
     "build:all": "npm run build:frontend && npm run build:backend:pyinstaller && npm run build:electron",
+    "build:windows": "npm run build:frontend && npm run build:backend:pyinstaller && cd electron && npm run build:win:portable",
+    "build:windows:installer": "npm run build:frontend && npm run build:backend:pyinstaller && cd electron && npm run build:win:installer",
     "seed": "echo \"No seeding configured for production delivery.\""
   },
   "devDependencies": {

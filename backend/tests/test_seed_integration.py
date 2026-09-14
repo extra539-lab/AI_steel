@@ -6,7 +6,7 @@ from fastapi import FastAPI
 from fastapi.testclient import TestClient
 
 from app.core.database import Base, get_db
-from app.core.config import settings
+from app.core.config import settings, build_sqlite_url
 from app.core.seed import ensure_default_products
 from app.routers import products_router
 from app.models.product import Product
@@ -110,6 +110,11 @@ def test_seed_idempotent_and_categories(db_engine_session):
         assert created2 == [] or all(c in REQUIRED_CODES for c in created2)
     finally:
         db.close()
+
+
+def test_sqlite_url_uses_windows_compatible_forward_slashes():
+    db_path = Path(r"C:\Users\Test\AppData\Roaming\A1SteelCement\data\a1_steel_cement.db")
+    assert build_sqlite_url(db_path) == "sqlite:///C:/Users/Test/AppData/Roaming/A1SteelCement/data/a1_steel_cement.db"
 
 
 def test_health_and_products_api(db_engine_session):

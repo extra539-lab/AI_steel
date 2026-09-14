@@ -1,7 +1,7 @@
 const { app, BrowserWindow, ipcMain, dialog, shell } = require('electron');
 const path = require('path');
 const fs = require('fs');
-const { spawn } = require('child_process');
+const { spawn, spawnSync } = require('child_process');
 const http = require('http');
 const https = require('https');
 
@@ -116,6 +116,7 @@ function startBackendForProduction(resourcesPath, port = DEFAULT_BACKEND_PORT) {
 
     writeMainLog(`Starting packaged backend: ${match}`);
     const backendDir = path.dirname(match);
+    const normalizedAppDataDatabase = appDataDatabase.replace(/\\/g, '/');
 
     backendProcess = spawn(match, [], {
       detached: false,
@@ -128,7 +129,7 @@ function startBackendForProduction(resourcesPath, port = DEFAULT_BACKEND_PORT) {
         APP_ENV: 'production',
         APP_DATA_DIR: userData,
         PRODUCTION_DATABASE: appDataDatabase,
-        DATABASE_URL: `sqlite:///${appDataDatabase}`,
+        DATABASE_URL: `sqlite:///${normalizedAppDataDatabase}`,
         PYTHONUNBUFFERED: '1',
       }),
     });
@@ -159,6 +160,28 @@ function startBackendForProduction(resourcesPath, port = DEFAULT_BACKEND_PORT) {
   }
 }
 
+function isUsablePythonExecutable(candidate) {
+  if (!candidate || typeof candidate !== 'string') return false;
+
+  try {
+    if (!fs.existsSync(candidate)) return false;
+    const stat = fs.statSync(candidate);
+    if (!stat.isFile()) return false;
+  } catch (e) {
+    return false;
+  }
+
+  try {
+    const result = spawnSync(candidate, ['-c', 'import sys; print(sys.executable)'], {
+      encoding: 'utf8',
+      stdio: ['ignore', 'pipe', 'pipe'],
+    });
+    return result && result.status === 0;
+  } catch (e) {
+    return false;
+  }
+}
+
 function resolvePythonExecutable(projectRoot) {
   const backendRoot = path.join(projectRoot, 'backend');
   const candidates = [
@@ -166,10 +189,16 @@ function resolvePythonExecutable(projectRoot) {
     path.join(backendRoot, process.platform === 'win32' ? 'venv\\Scripts\\python.exe' : 'venv/bin/python'),
     path.join(backendRoot, process.platform === 'win32' ? '.venv\\Scripts\\python.exe' : '.venv/bin/python'),
     path.join(projectRoot, process.platform === 'win32' ? '.venv\\Scripts\\python.exe' : '.venv/bin/python'),
-    process.platform === 'win32' ? 'python.exe' : 'python',
+    process.platform === 'win32' ? 'python.exe' : 'python3',
+    process.platform === 'win32' ? 'python.exe' : 'python3.14',
   ].filter(Boolean);
 
-  return candidates.find((candidate) => candidate && fs.existsSync(candidate)) || candidates[candidates.length - 1];
+  const validCandidate = candidates.find((candidate) => isUsablePythonExecutable(candidate));
+  if (validCandidate) return validCandidate;
+
+  const fallback = process.platform === 'win32' ? 'python.exe' : 'python3';
+  writeMainLog(`No usable Python interpreter found. Candidates checked: ${candidates.join('; ')}`);
+  return fallback;
 }
 
 function startBackendForDev(projectRoot, port = DEFAULT_BACKEND_PORT) {

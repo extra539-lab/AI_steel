@@ -5,6 +5,11 @@ BASE_DIR = Path(__file__).resolve().parents[2]
 APP_ENV = os.getenv("APP_ENV", "production").strip().lower()
 
 
+def build_sqlite_url(db_path: Path | str) -> str:
+    normalized = str(Path(db_path)).replace("\\", "/")
+    return f"sqlite:///{normalized}"
+
+
 def _default_user_app_data() -> Path:
     if os.name == "nt" and os.getenv("APPDATA"):
         return Path(os.environ["APPDATA"]) / "A1SteelCement"
@@ -18,8 +23,13 @@ DEV_DATABASE = Path(os.getenv("DEV_DATABASE") or (BASE_DIR.parent / "data" / "de
 PRODUCTION_DATABASE = Path(
     os.getenv("PRODUCTION_DATABASE") or (base_app_data / "data" / "a1_steel_cement.db")
 )
+TEST_DATABASE = Path(os.getenv("TEST_DATABASE") or (BASE_DIR / "test-data" / "a1_steel_cement.db"))
 
-if APP_ENV == "development" and not custom_app_data:
+if APP_ENV == "test":
+    DATA_DIR = TEST_DATABASE.parent
+    BACKUP_DIR = TEST_DATABASE.parent / "backups"
+    DATABASE_PATH = TEST_DATABASE
+elif APP_ENV == "development" and not custom_app_data:
     DATA_DIR = DEV_DATABASE.parent
     BACKUP_DIR = BASE_DIR.parent / "backups" / "dev"
     DATABASE_PATH = DEV_DATABASE
@@ -31,7 +41,7 @@ else:
 DATA_DIR.mkdir(parents=True, exist_ok=True)
 BACKUP_DIR.mkdir(parents=True, exist_ok=True)
 DATABASE_PATH = DATABASE_PATH.resolve()
-DATABASE_URL = os.getenv("DATABASE_URL", f"sqlite:///{DATABASE_PATH}")
+DATABASE_URL = os.getenv("DATABASE_URL") or build_sqlite_url(DATABASE_PATH)
 
 
 class Settings:
